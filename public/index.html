@@ -1,0 +1,134 @@
+    <!-- index.html -->
+<!-- nitrogen development -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fluent Chatroom</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            margin: 10px;
+            background-color: rgb(26, 26, 26);
+            color: white
+        }
+
+        #header {
+            border: 1px solid #333333;
+            background-color: #1f1f1f;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        #messages {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #messages li {
+            padding: 5px 10px;
+        }
+
+        form {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        input {
+            flex: 1;
+        }
+
+        button {
+            flex-basis: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h2>Hydro v1</h2>
+        <p>Admins will always have a red username, don't trust any imposters. <strong>THIS IS A PUBLIC CHATROOM! DON'T CLICK ANY LINKS OR BELIEVE ANYBODY!</strong></p>
+    </div>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="input" autocomplete="off" placeholder="Type a message (100 characters max)" maxlength="100" /><button id="sendButton">Send</button>
+    </form>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+
+        const swearWords = ['swear1', 'swear2', 'swear3']; // Add your list of swear words here
+
+        let username = prompt('Please enter your username') || 'Anonymous';
+
+        if (username === 'Admin') {
+            const password = prompt('Please enter the password');
+            if (password !== 'admin_password') {
+                alert('Invalid password. Please try again.');
+                window.location.reload();
+            }
+        }
+
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+        const messages = document.getElementById('messages');
+        const sendButton = document.getElementById('sendButton');
+
+        let cooldown = false;
+
+        const checkSwearWords = (message) => {
+            const words = message.split(' ');
+            for (let i = 0; i < words.length; i++) {
+                if (swearWords.includes(words[i].toLowerCase())) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        const sendMessage = () => {
+            if (!cooldown && input.value.trim() !== '') {
+                const message = input.value.trim();
+                if (message.length > 100) {
+                    alert('Please limit your message to 100 characters.');
+                } else if (checkSwearWords(message)) {
+                    alert('Please refrain from using inappropriate language.');
+                } else {
+                    socket.emit('message', { username, message: input.value });
+                    input.value = '';
+                    cooldown = true;
+                    let timeLeft = 2;
+                    sendButton.innerText = timeLeft.toFixed(1);
+                    const interval = setInterval(() => {
+                        timeLeft -= 0.1;
+                        sendButton.innerText = timeLeft.toFixed(1);
+                        if (timeLeft <= 0) {
+                            clearInterval(interval);
+                            sendButton.innerText = 'Send';
+                            cooldown = false;
+                        }
+                    }, 100);
+                }
+            }
+        };
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        sendButton.addEventListener('click', () => {
+            sendMessage();
+        });
+
+        socket.on('message', (data) => {
+            const item = document.createElement('li');
+            if (data.username === 'Admin') {
+                item.innerHTML = `<strong><span style="color: red;">${data.username}:</span></strong> <strong>${data.message}</strong>`;
+            } else {
+                item.textContent = `${data.username}: ${data.message}`;
+            }
+            messages.appendChild(item);
+        });
+    </script>
+</body>
+</html>
